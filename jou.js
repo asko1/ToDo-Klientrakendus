@@ -10,7 +10,10 @@ var tasksLoaded = false; // Nimepidi peaks need üksteise vastandid olema, kuid 
 
 function reqListener () { // Käivitub igakord kui teha API call
     console.log(this.responseText);
-    response = JSON.parse(this.response);
+    try {
+        response = JSON.parse(this.response);
+    } catch(err) {} // Üldiselt juhtub siin error kui response on tühi ja see on lihtne viis selle ignoreerimiseks
+    
     tasks = response;
 
     if (this.status == 200 && tasksNotLoaded == true) {
@@ -20,11 +23,13 @@ function reqListener () { // Käivitub igakord kui teha API call
     } else if (this.status == 201 && tasksNotLoaded == true) {
         serverResponse.innerHTML = "Account successfully created";
     } else if (tasksNotLoaded == true) {
-        serverResponse.innerHTML = "Login Failed " + this.status + " " + this.statusText + " " + response.message;
+        var responseMessage;
+        if (Array.isArray(response)) { // Kui registreerimisel on kasutajanimi juba võetud, siis tagastab ta millegi pärast array
+            responseMessage = response[0];
+            serverResponse.innerHTML = "Login Failed " + this.status + " " + this.statusText + " " + responseMessage.message;
+        } else {serverResponse.innerHTML = "Login Failed " + this.status + " " + this.statusText + " " + response.message;}
     } else if (tasksNotLoaded == false && tasksLoaded == false) { // Käivitub peale edukat sisse logimist ja tekitab olemas olevad taskid ekraanile 
-        console.log(tasks);
         tasks.forEach(el => {
-            console.log(el);
 
             var task = document.createElement("div");
             task.id = el.id
@@ -174,9 +179,12 @@ function loadTasks() {
 }
 
 function deleteTask() {
-    console.log(this);
-    console.log(this.parentElement);
     if (this.parentElement.hasAttribute("id")) {
-        this.parentElement.remove();
+        var taskID = this.parentElement.id;
+        request.open('DELETE', "http://demo2.z-bit.ee/tasks/" + taskID, false);
+        request.setRequestHeader("Authorization", "Bearer " + accessToken);
+        request.setRequestHeader("Content-Type", "application/json");
+        request.send();
     }
+    this.parentElement.remove();
 }
